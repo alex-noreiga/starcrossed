@@ -23,9 +23,9 @@ Starcrossed is a web application that allows users to generate their birth chart
 
 ## Technologies Used
 
-- Front-end: 
-- Back-end: 
-- Database: 
+- Front-end: HTML/CSS, JavaScript
+- Back-end: Node.js, Express.js
+- Database: MongoDB
 - Astrological Calculations: [Library Name]
 
 ## License
