@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-night-950 text-white;
+}
+
+.cosmic-gradient {
+  @apply bg-gradient-to-br from-primary-600 to-cosmic-500;
+}
