@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface BirthFormProps {
@@ -15,7 +15,77 @@ const BirthForm: React.FC<BirthFormProps> = ({ onSubmit }) => {
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');
   const [birthPlace, setBirthPlace] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
+
+  // Initialize Google Maps Places Autocomplete
+  useEffect(() => {
+    // Load Google Maps API script if not already loaded
+    if (!window.google) {
+      const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Handle place input change with debouncing
+  const handlePlaceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setBirthPlace(value);
+    
+    // Clear previous timeout
+    if (autocompleteTimeoutRef.current) {
+      clearTimeout(autocompleteTimeoutRef.current);
+    }
+    
+    // Set a new timeout for autocomplete
+    if (value.length > 2) {
+      autocompleteTimeoutRef.current = setTimeout(() => {
+        fetchPlaceSuggestions(value);
+      }, 300);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Fetch suggestions from Google Places API
+  const fetchPlaceSuggestions = (input: string) => {
+    if (window.google && window.google.maps && window.google.maps.places) {
+      const autocompleteService = new window.google.maps.places.AutocompleteService();
+      autocompleteService.getPlacePredictions(
+        {
+          input,
+          types: ['(cities)']
+        },
+        (predictions: google.maps.places.AutocompletePrediction[] | null) => {
+          if (predictions) {
+            const placeNames = predictions.map(p => p.description);
+            setSuggestions(placeNames);
+            setShowSuggestions(true);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        }
+      );
+    } else {
+      // Fallback if Google Maps API is not loaded
+      setSuggestions([]);
+    }
+  };
+
+  // Handle suggestion selection
+  const handleSuggestionClick = (suggestion: string) => {
+    setBirthPlace(suggestion);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +107,18 @@ const BirthForm: React.FC<BirthFormProps> = ({ onSubmit }) => {
     // For the MVP, we'll just navigate to the chart page
     navigate('/chart');
   };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowSuggestions(false);
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="birth-form">
@@ -84,9 +166,12 @@ const BirthForm: React.FC<BirthFormProps> = ({ onSubmit }) => {
             className="cosmic-input"
             required
           />
+          <p className="text-night-400 text-xs mt-1">
+            The more accurate the time, the more accurate your chart will be.
+          </p>
         </div>
         
-        <div>
+        <div className="relative">
           <label htmlFor="birthPlace" className="block text-sm font-medium text-night-300 mb-1">
             Birth Place
           </label>
@@ -94,7 +179,8 @@ const BirthForm: React.FC<BirthFormProps> = ({ onSubmit }) => {
             type="text"
             id="birthPlace"
             value={birthPlace}
-            onChange={(e) => setBirthPlace(e.target.value)}
+            onChange={handlePlaceChange}
+            onClick={(e) => e.stopPropagation()}
             placeholder="City, Country"
             className="cosmic-input"
             required
@@ -102,6 +188,21 @@ const BirthForm: React.FC<BirthFormProps> = ({ onSubmit }) => {
           <p className="text-night-400 text-xs mt-1">
             Example: New York, USA
           </p>
+          
+          {/* Location suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-night-800 border border-night-600 rounded shadow-lg max-h-60 overflow-y-auto">
+              {suggestions.map((suggestion, index) => (
+                <div
+                  key={index}
+                  className="px-4 py-2 hover:bg-primary-900 cursor-pointer"
+                  onClick={() => handleSuggestionClick(suggestion)}
+                >
+                  {suggestion}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         <button 

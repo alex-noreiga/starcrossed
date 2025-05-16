@@ -1,117 +1,180 @@
-import React, { useEffect, useState } from 'react';
-import BirthChart from '../components/BirthChart';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import ChartVisualization from '../components/ChartVisualization';
+import PlanetInterpretation from '../components/PlanetInterpretation';
+import axios from 'axios';
 
-const ChartPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [userData, setUserData] = useState<any>(null);
+interface ChartPageProps {
+  chartData?: any;
+}
+
+const ChartPage: React.FC<ChartPageProps> = ({ chartData: initialChartData }) => {
+  const [chartData, setChartData] = useState(initialChartData);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // Sample chart data for MVP
-  // In a real app, this would come from the backend calculation
-  const chartData = {
-    planets: [
-      { name: 'Sun', degree: 15.5, sign: 'Leo', house: 5 },
-      { name: 'Moon', degree: 3.2, sign: 'Cancer', house: 4 },
-      { name: 'Mercury', degree: 20.1, sign: 'Leo', house: 5 },
-      { name: 'Venus', degree: 8.7, sign: 'Virgo', house: 6 },
-      { name: 'Mars', degree: 12.3, sign: 'Scorpio', house: 8 },
-      { name: 'Jupiter', degree: 5.5, sign: 'Taurus', house: 2 },
-      { name: 'Saturn', degree: 28.9, sign: 'Aquarius', house: 11 },
-      { name: 'Uranus', degree: 17.2, sign: 'Pisces', house: 12 },
-      { name: 'Neptune', degree: 22.8, sign: 'Capricorn', house: 10 },
-      { name: 'Pluto', degree: 10.5, sign: 'Sagittarius', house: 9 },
-    ],
-    houses: [
-      { house: 1, sign: 'Aries', degree: 5.2 },
-      { house: 2, sign: 'Taurus', degree: 3.1 },
-      { house: 3, sign: 'Gemini', degree: 1.5 },
-      { house: 4, sign: 'Cancer', degree: 2.8 },
-      { house: 5, sign: 'Leo', degree: 5.6 },
-      { house: 6, sign: 'Virgo', degree: 7.9 },
-      { house: 7, sign: 'Libra', degree: 5.2 },
-      { house: 8, sign: 'Scorpio', degree: 3.1 },
-      { house: 9, sign: 'Sagittarius', degree: 1.5 },
-      { house: 10, sign: 'Capricorn', degree: 2.8 },
-      { house: 11, sign: 'Aquarius', degree: 5.6 },
-      { house: 12, sign: 'Pisces', degree: 7.9 },
-    ],
-    aspects: [
-      { planet1: 'Sun', planet2: 'Mercury', type: 'Conjunction', orb: 4.6 },
-      { planet1: 'Moon', planet2: 'Venus', type: 'Square', orb: 5.5 },
-      { planet1: 'Mars', planet2: 'Jupiter', type: 'Trine', orb: 6.8 },
-      { planet1: 'Saturn', planet2: 'Uranus', type: 'Opposition', orb: 11.7 },
-      { planet1: 'Venus', planet2: 'Neptune', type: 'Sextile', orb: 14.1 },
-    ]
-  };
-
-  useEffect(() => {
-    // Get user data from localStorage
-    const storedData = localStorage.getItem('birthChartData');
-    
-    if (storedData) {
-      setUserData(JSON.parse(storedData));
-    } else {
-      // If no data, navigate back to home
-      navigate('/');
+  // Example function to fetch chart data
+  const fetchChartData = async (chartId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await axios.get(`/api/charts/${chartId}`);
+      setChartData(response.data);
+    } catch (err) {
+      console.error('Error fetching chart:', err);
+      setError('Could not load chart data. Please try again later.');
+    } finally {
+      setLoading(false);
     }
-  }, [navigate]);
-
-  if (!userData) {
+  };
+  
+  // If no data is provided, show a placeholder or error
+  if (!chartData && !loading) {
     return (
-      <div className="flex justify-center items-center h-96">
-        <div className="text-3xl text-primary-400 animate-pulse">Loading...</div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-night-900 text-white p-6">
+        <div className="max-w-4xl w-full bg-night-800 rounded-xl shadow-xl p-8 text-center">
+          <h2 className="text-3xl font-serif mb-6">Chart Not Found</h2>
+          <p className="mb-6">
+            The birth chart you're looking for could not be loaded. Please return to the home page to generate a new chart.
+          </p>
+          <a 
+            href="/" 
+            className="cosmic-button py-3 px-6 inline-block text-lg font-medium"
+          >
+            Return Home
+          </a>
+        </div>
       </div>
     );
   }
-
+  
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-night-900 text-white">
+        <div className="cosmic-spinner mb-4"></div>
+        <p className="text-night-300">Calculating celestial positions...</p>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-night-900 text-white p-6">
+        <div className="max-w-4xl w-full bg-night-800 rounded-xl shadow-xl p-8 text-center">
+          <h2 className="text-3xl font-serif mb-6">Error Loading Chart</h2>
+          <p className="mb-6 text-red-400">
+            {error}
+          </p>
+          <a 
+            href="/" 
+            className="cosmic-button py-3 px-6 inline-block text-lg font-medium"
+          >
+            Try Again
+          </a>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="text-center mb-10">
-        <h1 className="text-3xl md:text-4xl font-serif font-bold mb-4">
-          {userData.name}'s Birth Chart
-        </h1>
-        <p className="text-night-300">
-          Born on {new Date(userData.birthDate).toLocaleDateString()} at {userData.birthTime} in {userData.birthPlace}
-        </p>
-      </div>
-
-      <div className="mb-12">
-        <BirthChart chartData={chartData} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-        <div className="bg-night-800 p-6 rounded-lg">
-          <h2 className="text-2xl font-serif mb-4 text-primary-400">Your Sun Sign: Leo</h2>
-          <p className="text-night-300 mb-4">
-            With your Sun in Leo, you have a natural flair for the dramatic and a warm, generous spirit. 
-            You're likely to be creative, confident, and have a strong desire to express yourself.
-          </p>
-          <p className="text-night-300">
-            Your core identity revolves around themes of self-expression, creativity, and leadership. 
-            You have a natural ability to inspire others with your enthusiasm and charisma.
-          </p>
+    <div className="chart-page bg-night-900 text-white min-h-screen p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Chart Info Header */}
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-serif mb-2">Birth Chart</h1>
+          <div className="text-primary-400 text-lg mb-1">
+            {chartData.info?.date} at {chartData.info?.time}
+          </div>
+          <div className="text-night-400">
+            {chartData.info?.location}
+          </div>
         </div>
-
-        <div className="bg-night-800 p-6 rounded-lg">
-          <h2 className="text-2xl font-serif mb-4 text-cosmic-400">Your Moon Sign: Cancer</h2>
-          <p className="text-night-300 mb-4">
-            With your Moon in Cancer, you have deep emotional sensitivity and a strong connection to 
-            home and family. You're naturally nurturing and protective of those you care about.
-          </p>
-          <p className="text-night-300">
-            Your emotional needs center around feeling secure, being nurtured, and having a sense 
-            of belonging. You may be deeply influenced by your past and childhood experiences.
-          </p>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+          {/* Chart Visualization */}
+          <div className="chart-wheel bg-night-800 rounded-xl p-6 shadow-xl">
+            <h2 className="text-2xl font-serif text-center mb-6">Natal Chart Wheel</h2>
+            <ChartVisualization chartData={chartData} />
+          </div>
+          
+          {/* Planets Table */}
+          <div className="planets-table bg-night-800 rounded-xl p-6 shadow-xl">
+            <h2 className="text-2xl font-serif text-center mb-6">Planetary Positions</h2>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-night-700">
+                    <th className="text-left pb-3 pl-2">Planet</th>
+                    <th className="text-left pb-3">Sign</th>
+                    <th className="text-left pb-3">Position</th>
+                    <th className="text-left pb-3">House</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartData.planets.map((planet: any, index: number) => (
+                    <tr key={index} className="border-b border-night-700 hover:bg-night-700">
+                      <td className="py-3 pl-2 flex items-center">
+                        <span className={planet.isRetrograde ? 'text-red-400' : 'text-white'}>
+                          {planet.name}
+                        </span>
+                        {planet.isRetrograde && <span className="text-xs ml-1 text-red-400">℞</span>}
+                      </td>
+                      <td className="py-3">{planet.sign}</td>
+                      <td className="py-3">{planet.degree.toFixed(2)}°</td>
+                      <td className="py-3">{planet.house}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-b border-night-700 hover:bg-night-700 bg-night-700 bg-opacity-40">
+                    <td className="py-3 pl-2">Ascendant</td>
+                    <td className="py-3">{chartData.points.ascendant.sign}</td>
+                    <td className="py-3">{chartData.points.ascendant.degree.toFixed(2)}°</td>
+                    <td className="py-3">1</td>
+                  </tr>
+                  <tr className="border-b border-night-700 hover:bg-night-700 bg-night-700 bg-opacity-40">
+                    <td className="py-3 pl-2">Midheaven (MC)</td>
+                    <td className="py-3">{chartData.points.mc.sign}</td>
+                    <td className="py-3">{chartData.points.mc.degree.toFixed(2)}°</td>
+                    <td className="py-3">10</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Aspect Grid (simplified version) */}
+            <div className="mt-8">
+              <h3 className="text-xl font-medium mb-4">Aspects</h3>
+              <div className="space-y-2">
+                {chartData.aspects.slice(0, 10).map((aspect: any, index: number) => (
+                  <div key={index} className="flex justify-between bg-night-700 p-2 rounded text-sm">
+                    <span>{aspect.planet1} - {aspect.planet2}</span>
+                    <span>{aspect.type} ({aspect.orb.toFixed(1)}°)</span>
+                  </div>
+                ))}
+                {chartData.aspects.length > 10 && (
+                  <div className="text-center text-night-400 text-sm mt-2">
+                    + {chartData.aspects.length - 10} more aspects
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="text-center mb-10">
-        <button 
-          onClick={() => navigate('/')}
-          className="cosmic-button"
-        >
-          Generate Another Chart
-        </button>
+        
+        {/* Interpretations Section */}
+        <div className="interpretations-section mb-12">
+          <PlanetInterpretation interpretations={chartData.interpretations} />
+        </div>
+        
+        {/* Actions */}
+        <div className="flex justify-center space-x-4 mb-8">
+          <button className="cosmic-button py-3 px-6 text-lg font-medium">
+            Save Chart
+          </button>
+          <button className="cosmic-button-outline py-3 px-6 text-lg font-medium">
+            Print Chart
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,8 +1,13 @@
 const swisseph = require('swisseph');
 const { ApiError } = require('../utils/errorHandler');
+const interpretationService = require('./interpretationService');
+const locationService = require('./locationService');
 
-// Set the ephemeris path - you would need to download and provide the proper path
-swisseph.swe_set_ephe_path('/path/to/ephemeris');
+// Set the ephemeris path
+const path = require('path');
+const ephePath = process.env.EPHE_PATH || path.join(__dirname, '../../ephe');
+swisseph.swe_set_ephe_path(ephePath);
+console.log(`Swiss Ephemeris path set to: ${ephePath}`);
 
 // Helper for converting degrees to zodiac sign
 const getZodiacSign = (longitude) => {
@@ -18,18 +23,29 @@ const getZodiacSign = (longitude) => {
 };
 
 // Helper for calculating the house placement of a planet
-const getHousePlacement = (longitude, houses) => {
-  // For simplicity in this MVP, we'll use a basic method
-  // A real implementation would use proper house systems (Placidus, Koch, etc.)
+const getHousePlacement = (longitude, houses, houseSystem = 'placidus') => {
+  // For Whole Sign houses, placement is simply based on the sign
+  if (houseSystem.toLowerCase() === 'whole-sign') {
+    // Each sign corresponds to one house, starting with the Ascendant sign as the 1st house
+    // For simplicity here, we'll just use the longitude directly
+    return Math.floor(longitude / 30) + 1;
+  }
+  
+  // For Placidus or other house systems, use the house cusps
   for (let i = 0; i < houses.length; i++) {
+    const currentHouse = houses[i];
     const nextHouse = houses[(i + 1) % houses.length];
-    if (
-      (houses[i].degree <= longitude && longitude < nextHouse.degree) ||
-      (houses[i].degree > nextHouse.degree && (longitude >= houses[i].degree || longitude < nextHouse.degree))
-    ) {
-      return houses[i].house;
+    
+    // Handle the case when a house crosses 0° Aries (360° -> 0°)
+    if (currentHouse.longitude > nextHouse.longitude) {
+      if (longitude >= currentHouse.longitude || longitude < nextHouse.longitude) {
+        return currentHouse.house;
+      }
+    } else if (longitude >= currentHouse.longitude && longitude < nextHouse.longitude) {
+      return currentHouse.house;
     }
   }
+  
   return 1; // Default to first house if not found
 };
 
@@ -86,22 +102,31 @@ const calculateAspects = (planets) => {
 
 const calculateBirthChart = async (birthData) => {
   try {
-    const { birthDate, birthTime, birthPlace } = birthData;
+    const { birthDate, birthTime, birthPlace, houseSystem = 'placidus' } = birthData;
     
-    // Parse birth date and time
-    const birthDateTime = new Date(`${birthDate}T${birthTime}`);
+    // Get location data using geocoding
+    const location = await locationService.getGeocoding(birthPlace);
+    const { latitude, longitude } = location;
     
-    // For a real app, you would use a geocoding API to get latitude/longitude
-    // For this MVP, we'll use placeholder values
-    const latitude = 40.7128; // New York latitude
-    const longitude = -74.0060; // New York longitude
+    // Get timezone data for the location and birth date
+    const timezone = await locationService.getTimezone(latitude, longitude, birthDate);
     
-    // Julian day number for the birth date and time
+    // Adjust time for DST if needed
+    const adjustedTime = locationService.adjustForDST(birthDate, birthTime, timezone);
+    
+    // Calculate UTC time
+    const utcDateTime = locationService.calculateUtcTime(
+      adjustedTime.dateStr,
+      adjustedTime.timeStr,
+      adjustedTime.gmtOffset
+    );
+    
+    // Calculate Julian day from UTC time
     const julianDay = swisseph.swe_julday(
-      birthDateTime.getUTCFullYear(),
-      birthDateTime.getUTCMonth() + 1, // Month is 0-indexed in JS
-      birthDateTime.getUTCDate(),
-      birthDateTime.getUTCHours() + birthDateTime.getUTCMinutes() / 60,
+      utcDateTime.getUTCFullYear(),
+      utcDateTime.getUTCMonth() + 1, // Month is 0-indexed in JS
+      utcDateTime.getUTCDate(),
+      utcDateTime.getUTCHours() + utcDateTime.getUTCMinutes() / 60,
       swisseph.SE_GREG_CAL
     );
     
@@ -117,19 +142,50 @@ const calculateBirthChart = async (birthData) => {
       { id: swisseph.SE_SATURN, name: 'Saturn' },
       { id: swisseph.SE_URANUS, name: 'Uranus' },
       { id: swisseph.SE_NEPTUNE, name: 'Neptune' },
-      { id: swisseph.SE_PLUTO, name: 'Pluto' }
+      { id: swisseph.SE_PLUTO, name: 'Pluto' },
+      // Add North Node (Mean)
+      { id: swisseph.SE_MEAN_NODE, name: 'North Node' },
+      // Chiron 
+      { id: swisseph.SE_CHIRON, name: 'Chiron' }
     ];
     
-    // Calculate house cusps
-    // For MVP, we'll create a simplified calculation
-    // A complete implementation would use the swisseph.swe_houses function
+    // Determine house system flag based on the requested system
+    let houseSystemFlag;
+    switch (houseSystem.toLowerCase()) {
+      case 'placidus':
+        houseSystemFlag = swisseph.SE_HSYS_PLACIDUS;
+        break;
+      case 'koch':
+        houseSystemFlag = swisseph.SE_HSYS_KOCH;
+        break;
+      case 'whole-sign':
+        houseSystemFlag = swisseph.SE_HSYS_WHOLE_SIGN;
+        break;
+      case 'equal':
+        houseSystemFlag = swisseph.SE_HSYS_EQUAL;
+        break;
+      default:
+        houseSystemFlag = swisseph.SE_HSYS_PLACIDUS;
+    }
+    
+    // Calculate house cusps using Swiss Ephemeris
+    // Properly calculate Ascendant, MC, and house cusps
+    const { house_cusps, ascendant, mc } = swisseph.swe_houses(
+      julianDay,
+      latitude,
+      longitude,
+      houseSystemFlag
+    );
+    
+    // Transform house cusps into our data format
     const houses = [];
     for (let i = 1; i <= 12; i++) {
-      const offset = (i - 1) * 30;
+      const longitude = house_cusps[i];
       houses.push({
         house: i,
-        sign: getZodiacSign(offset),
-        degree: offset % 30
+        longitude,
+        sign: getZodiacSign(longitude),
+        degree: longitude % 30
       });
     }
     
@@ -140,20 +196,54 @@ const calculateBirthChart = async (birthData) => {
       
       planets.push({
         name: planet.name,
+        longitude,
         degree: longitude % 30, // Position within the sign
         sign: getZodiacSign(longitude),
-        house: getHousePlacement(longitude, houses)
+        house: getHousePlacement(longitude, houses, houseSystem),
+        speed: result.speed, // Retrograde if negative
+        isRetrograde: result.speed < 0
       });
     }
     
     // Calculate aspects between planets
     const aspects = calculateAspects(planets);
     
-    // Return the complete chart data
-    return {
+    // Prepare the complete chart data
+    const chartData = {
+      info: {
+        date: birthDate,
+        time: birthTime,
+        location: location.formattedAddress,
+        timezone: timezone.zoneName,
+        isDST: timezone.dst,
+        latitude,
+        longitude,
+        houseSystem
+      },
+      points: {
+        ascendant: {
+          longitude: ascendant,
+          sign: getZodiacSign(ascendant),
+          degree: ascendant % 30
+        },
+        mc: {
+          longitude: mc,
+          sign: getZodiacSign(mc),
+          degree: mc % 30
+        }
+      },
       planets,
       houses,
       aspects
+    };
+    
+    // Generate interpretations
+    const interpretations = interpretationService.generateChartInterpretation(chartData);
+    
+    // Return the complete chart data with interpretations
+    return {
+      ...chartData,
+      interpretations
     };
   } catch (error) {
     console.error("Error calculating birth chart:", error);

@@ -1,85 +1,258 @@
-import React from 'react';
-import { getPlanetSymbol } from '../utils/astrologyUtils';
+import React, { useState } from 'react';
 
 interface PlanetInterpretationProps {
-  planet: string;
-  sign: string;
-  house: number;
+  interpretations: {
+    ascendant: {
+      title: string;
+      description: string;
+      keywords: string[];
+      element: string;
+      quality: string;
+    };
+    planetaryPositions: Array<{
+      title: string;
+      description: string;
+      keywords: string[];
+      house: number;
+      retrograde?: boolean;
+    }>;
+    houseSystem: Array<{
+      title: string;
+      description: string;
+      keywords: string[];
+      planets: string[];
+    }>;
+    aspects: Array<{
+      title: string;
+      description: string;
+      nature: string;
+      orb: number;
+      symbol: string;
+    }>;
+    summary: {
+      title: string;
+      description: string;
+      dominantElements: string[];
+      dominantModality: string;
+      elementBalance: Record<string, number>;
+      modalityBalance: Record<string, number>;
+    };
+  };
 }
 
-const PlanetInterpretation: React.FC<PlanetInterpretationProps> = ({ planet, sign, house }) => {
-  // Basic interpretations for demo purposes
-  // In a real app, these would be more comprehensive and possibly from a database
-  const interpretations: {[key: string]: {[key: string]: string}} = {
-    'Sun': {
-      'Aries': 'Your core identity is expressed through bold leadership and pioneering spirit.',
-      'Taurus': 'You express yourself through practicality, reliability, and an appreciation for beauty.',
-      'Gemini': 'Your essence shines through communication, curiosity, and adaptability.',
-      'Cancer': 'Your identity is centered around nurturing, emotions, and creating security.',
-      'Leo': 'Your core self expresses through creativity, generosity, and natural leadership.',
-      'Virgo': 'You express yourself through analysis, practicality, and helping others.',
-      'Libra': 'Your identity revolves around harmony, relationships, and a sense of fairness.',
-      'Scorpio': 'Your essence is expressed through intensity, depth, and transformation.',
-      'Sagittarius': 'You express yourself through optimism, exploration, and philosophical thinking.',
-      'Capricorn': 'Your core self is expressed through ambition, discipline, and responsibility.',
-      'Aquarius': 'Your identity shines through innovation, humanitarian ideals, and independence.',
-      'Pisces': 'You express yourself through imagination, compassion, and spiritual connection.'
-    },
-    'Moon': {
-      'Aries': 'Your emotional nature is direct, quick to react, and needs freedom.',
-      'Taurus': 'Your emotional needs center around stability, comfort, and sensory pleasures.',
-      'Gemini': 'You process emotions through talking, writing, and mental analysis.',
-      'Cancer': 'Your emotional nature is deeply sensitive, nurturing, and tied to memories.',
-      'Leo': 'You need emotional drama, warmth, and recognition for emotional satisfaction.',
-      'Virgo': 'Your emotional nature seeks order, routine, and practical solutions.',
-      'Libra': 'You find emotional balance through relationships and harmony with others.',
-      'Scorpio': 'Your emotions run deep, intense, and transformative.',
-      'Sagittarius': 'Your emotional nature craves freedom, adventure, and meaning.',
-      'Capricorn': 'Your emotions are controlled, serious, and tied to achievement.',
-      'Aquarius': 'You process emotions intellectually and value emotional independence.',
-      'Pisces': 'Your emotional nature is empathic, fluid, and spiritually attuned.'
-    }
-  };
-
-  // Default interpretation if specific combination not found
-  const defaultInterpretation = `Your ${planet} in ${sign} expresses in the ${house}th house of your chart, influencing that area of life.`;
+const PlanetInterpretation: React.FC<PlanetInterpretationProps> = ({ interpretations }) => {
+  const [activeTab, setActiveTab] = useState<'summary' | 'planets' | 'houses' | 'aspects'>('summary');
   
-  // Get interpretation or use default
-  const interpretation = interpretations[planet]?.[sign] || defaultInterpretation;
-
-  // House meanings for basic context
-  const houseMeanings: {[key: number]: string} = {
-    1: 'identity and self-expression',
-    2: 'values and resources',
-    3: 'communication and learning',
-    4: 'home and foundations',
-    5: 'creativity and pleasure',
-    6: 'work and health',
-    7: 'relationships and partnerships',
-    8: 'transformation and shared resources',
-    9: 'expansion and higher learning',
-    10: 'career and public standing',
-    11: 'community and future vision',
-    12: 'spirituality and the unconscious'
+  // Format percentages for element and modality charts
+  const getPercentage = (value: number, total: number) => {
+    return Math.round((value / total) * 100) || 0;
   };
-
-  const houseContext = houseMeanings[house] || `the ${house}th house`;
-
+  
+  // Calculate totals
+  const totalElements = Object.values(interpretations.summary.elementBalance).reduce((sum, count) => sum + count, 0);
+  const totalModalities = Object.values(interpretations.summary.modalityBalance).reduce((sum, count) => sum + count, 0);
+  
   return (
-    <div className="bg-night-800 p-5 rounded-lg">
-      <h3 className="text-xl font-medium flex items-center mb-3">
-        <span className="text-2xl mr-2">{getPlanetSymbol(planet)}</span>
-        <span>{planet} in {sign}</span>
-      </h3>
+    <div className="planet-interpretation bg-night-800 rounded-xl shadow-xl p-6">
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-night-600 mb-6">
+        <button
+          className={`pb-3 px-4 font-medium ${activeTab === 'summary' ? 'text-primary-400 border-b-2 border-primary-400' : 'text-night-300'}`}
+          onClick={() => setActiveTab('summary')}
+        >
+          Summary
+        </button>
+        <button
+          className={`pb-3 px-4 font-medium ${activeTab === 'planets' ? 'text-primary-400 border-b-2 border-primary-400' : 'text-night-300'}`}
+          onClick={() => setActiveTab('planets')}
+        >
+          Planets
+        </button>
+        <button
+          className={`pb-3 px-4 font-medium ${activeTab === 'houses' ? 'text-primary-400 border-b-2 border-primary-400' : 'text-night-300'}`}
+          onClick={() => setActiveTab('houses')}
+        >
+          Houses
+        </button>
+        <button
+          className={`pb-3 px-4 font-medium ${activeTab === 'aspects' ? 'text-primary-400 border-b-2 border-primary-400' : 'text-night-300'}`}
+          onClick={() => setActiveTab('aspects')}
+        >
+          Aspects
+        </button>
+      </div>
       
-      <p className="text-night-300 mb-3">
-        {interpretation}
-      </p>
+      {/* Summary Tab Content */}
+      {activeTab === 'summary' && (
+        <div className="summary-tab">
+          <h2 className="text-2xl font-serif mb-4">{interpretations.summary.title}</h2>
+          <p className="mb-6 text-night-200">{interpretations.summary.description}</p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Ascendant information */}
+            <div className="bg-night-700 rounded-lg p-4">
+              <h3 className="text-xl font-medium mb-2">{interpretations.ascendant.title}</h3>
+              <p className="mb-3">{interpretations.ascendant.description}</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {interpretations.ascendant.keywords.map((keyword, index) => (
+                  <span key={index} className="bg-primary-900 text-primary-100 px-2 py-1 rounded text-sm">
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Element & Modality Balance */}
+            <div className="bg-night-700 rounded-lg p-4">
+              <h3 className="text-xl font-medium mb-3">Element & Modality Balance</h3>
+              
+              <div className="mb-4">
+                <h4 className="text-sm font-medium mb-2 text-night-300">ELEMENTS</h4>
+                <div className="w-full bg-night-800 rounded-full h-4 mb-1">
+                  <div className="flex h-full rounded-full overflow-hidden">
+                    <div 
+                      className="bg-red-500" 
+                      style={{width: `${getPercentage(interpretations.summary.elementBalance['Fire'], totalElements)}%`}}
+                      title={`Fire: ${interpretations.summary.elementBalance['Fire']} planets`}
+                    ></div>
+                    <div 
+                      className="bg-green-700" 
+                      style={{width: `${getPercentage(interpretations.summary.elementBalance['Earth'], totalElements)}%`}}
+                      title={`Earth: ${interpretations.summary.elementBalance['Earth']} planets`}
+                    ></div>
+                    <div 
+                      className="bg-yellow-300" 
+                      style={{width: `${getPercentage(interpretations.summary.elementBalance['Air'], totalElements)}%`}}
+                      title={`Air: ${interpretations.summary.elementBalance['Air']} planets`}
+                    ></div>
+                    <div 
+                      className="bg-blue-500" 
+                      style={{width: `${getPercentage(interpretations.summary.elementBalance['Water'], totalElements)}%`}}
+                      title={`Water: ${interpretations.summary.elementBalance['Water']} planets`}
+                    ></div>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs text-night-400">
+                  <span>Fire: {interpretations.summary.elementBalance['Fire'] || 0}</span>
+                  <span>Earth: {interpretations.summary.elementBalance['Earth'] || 0}</span>
+                  <span>Air: {interpretations.summary.elementBalance['Air'] || 0}</span>
+                  <span>Water: {interpretations.summary.elementBalance['Water'] || 0}</span>
+                </div>
+              </div>
+              
+              <div className="mb-2">
+                <h4 className="text-sm font-medium mb-2 text-night-300">MODALITIES</h4>
+                <div className="w-full bg-night-800 rounded-full h-4 mb-1">
+                  <div className="flex h-full rounded-full overflow-hidden">
+                    <div 
+                      className="bg-purple-500" 
+                      style={{width: `${getPercentage(interpretations.summary.modalityBalance['Cardinal'], totalModalities)}%`}}
+                      title={`Cardinal: ${interpretations.summary.modalityBalance['Cardinal']} planets`}
+                    ></div>
+                    <div 
+                      className="bg-orange-500" 
+                      style={{width: `${getPercentage(interpretations.summary.modalityBalance['Fixed'], totalModalities)}%`}}
+                      title={`Fixed: ${interpretations.summary.modalityBalance['Fixed']} planets`}
+                    ></div>
+                    <div 
+                      className="bg-teal-500" 
+                      style={{width: `${getPercentage(interpretations.summary.modalityBalance['Mutable'], totalModalities)}%`}}
+                      title={`Mutable: ${interpretations.summary.modalityBalance['Mutable']} planets`}
+                    ></div>
+                  </div>
+                </div>
+                <div className="flex justify-between text-xs text-night-400">
+                  <span>Cardinal: {interpretations.summary.modalityBalance['Cardinal'] || 0}</span>
+                  <span>Fixed: {interpretations.summary.modalityBalance['Fixed'] || 0}</span>
+                  <span>Mutable: {interpretations.summary.modalityBalance['Mutable'] || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
-      <p className="text-night-300">
-        This placement falls in your {house}th house of {houseContext}, 
-        suggesting its influence manifests in this area of your life.
-      </p>
+      {/* Planets Tab Content */}
+      {activeTab === 'planets' && (
+        <div className="planets-tab">
+          <h2 className="text-2xl font-serif mb-4">Planetary Positions</h2>
+          <p className="mb-6 text-night-200">
+            Your planetary placements reveal how different energies express in your life. Each planet in your chart
+            represents a different facet of your personality and life experience.
+          </p>
+          
+          <div className="space-y-6">
+            {interpretations.planetaryPositions.map((planet, index) => (
+              <div key={index} className="bg-night-700 rounded-lg p-4">
+                <h3 className="text-xl font-medium mb-2">{planet.title}
+                  {planet.retrograde && <span className="text-red-400 ml-2">(Retrograde)</span>}
+                </h3>
+                <p className="mb-3">{planet.description}</p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {planet.keywords.map((keyword, idx) => (
+                    <span key={idx} className="bg-primary-900 text-primary-100 px-2 py-1 rounded text-sm">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Houses Tab Content */}
+      {activeTab === 'houses' && (
+        <div className="houses-tab">
+          <h2 className="text-2xl font-serif mb-4">House Placements</h2>
+          <p className="mb-6 text-night-200">
+            The twelve houses represent different areas of life. The sign on each house cusp indicates 
+            how you approach these life areas, while planets within a house bring focus to it.
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {interpretations.houseSystem.map((house, index) => (
+              <div key={index} className="bg-night-700 rounded-lg p-4">
+                <h3 className="text-lg font-medium mb-2">{house.title}</h3>
+                <p className="mb-3 text-sm">{house.description}</p>
+                {house.planets.length > 0 && (
+                  <div className="text-xs text-night-300 mt-2">
+                    Planets: <span className="text-primary-300">{house.planets.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Aspects Tab Content */}
+      {activeTab === 'aspects' && (
+        <div className="aspects-tab">
+          <h2 className="text-2xl font-serif mb-4">Planetary Aspects</h2>
+          <p className="mb-6 text-night-200">
+            Aspects are the angular relationships between planets. They reveal how different parts of your
+            psyche interact, showing harmonious flows and productive tensions.
+          </p>
+          
+          <div className="space-y-4">
+            {interpretations.aspects.map((aspect, index) => (
+              <div key={index} className={`border-l-4 rounded-lg p-4 ${
+                aspect.nature === 'harmonious' ? 'border-green-500 bg-green-900 bg-opacity-20' :
+                aspect.nature === 'challenging' ? 'border-red-500 bg-red-900 bg-opacity-20' :
+                aspect.nature === 'polarizing' ? 'border-purple-500 bg-purple-900 bg-opacity-20' :
+                'border-yellow-500 bg-yellow-900 bg-opacity-20'
+              }`}>
+                <h3 className="text-lg font-medium mb-2">
+                  {aspect.title} <span className="text-2xl ml-1">{aspect.symbol}</span>
+                  <span className="text-sm font-normal ml-2 text-night-300">(orb: {aspect.orb.toFixed(1)}°)</span>
+                </h3>
+                <p className="text-sm">{aspect.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
