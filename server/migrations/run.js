@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { createTables } = require('./createTables');
+const { updateUserSchema } = require('./updateUserSchema');
 
 // Run migrations
 const runMigrations = async () => {
@@ -7,6 +8,7 @@ const runMigrations = async () => {
     console.log('Running migrations...');
     
     await createTables();
+    await updateUserSchema();
     
     console.log('All migrations completed successfully');
     process.exit(0);

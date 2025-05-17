@@ -2,6 +2,8 @@ const swisseph = require('swisseph');
 const { ApiError } = require('../utils/errorHandler');
 const interpretationService = require('./interpretationService');
 const locationService = require('./locationService');
+const Chart = require('../models/chartModel');
+const mongoose = require('mongoose');
 
 // Set the ephemeris path
 const path = require('path');
@@ -251,6 +253,159 @@ const calculateBirthChart = async (birthData) => {
   }
 };
 
+/**
+ * Get a chart by ID
+ * 
+ * @param {string} chartId - Chart ID
+ * @returns {Object} Chart data
+ */
+const getChartById = async (chartId) => {
+  try {
+    // Validate that chartId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(chartId)) {
+      throw new ApiError(400, 'Invalid chart ID');
+    }
+    
+    const chart = await Chart.findById(chartId);
+    
+    if (!chart) {
+      throw new ApiError(404, 'Chart not found');
+    }
+    
+    return chart;
+  } catch (error) {
+    console.error('Error fetching chart:', error);
+    throw error;
+  }
+};
+
+/**
+ * Update chart data
+ * 
+ * @param {string} chartId - Chart ID
+ * @param {Object} updateData - Data to update
+ * @returns {Object} Updated chart
+ */
+const updateChart = async (chartId, updateData) => {
+  try {
+    // Validate that chartId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(chartId)) {
+      throw new ApiError(400, 'Invalid chart ID');
+    }
+    
+    const chart = await Chart.findByIdAndUpdate(
+      chartId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+    
+    if (!chart) {
+      throw new ApiError(404, 'Chart not found');
+    }
+    
+    return chart;
+  } catch (error) {
+    console.error('Error updating chart:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get public charts by user ID
+ * 
+ * @param {string} userId - User ID
+ * @returns {Array} Public charts
+ */
+const getPublicChartsByUserId = async (userId) => {
+  try {
+    // Validate that userId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      throw new ApiError(400, 'Invalid user ID');
+    }
+    
+    const charts = await Chart.find({
+      userId,
+      isPublic: true
+    }).select('name birthDate birthTime birthPlace isPublic createdAt');
+    
+    return charts;
+  } catch (error) {
+    console.error('Error fetching public charts:', error);
+    throw error;
+  }
+};
+
+/**
+ * Add comment to a chart
+ * 
+ * @param {string} chartId - Chart ID
+ * @param {Object} comment - Comment data
+ * @returns {Object} Updated chart
+ */
+const addComment = async (chartId, comment) => {
+  try {
+    // Validate that chartId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(chartId)) {
+      throw new ApiError(400, 'Invalid chart ID');
+    }
+    
+    const chart = await Chart.findByIdAndUpdate(
+      chartId,
+      { $push: { comments: comment } },
+      { new: true, runValidators: true }
+    );
+    
+    if (!chart) {
+      throw new ApiError(404, 'Chart not found');
+    }
+    
+    return chart;
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    throw error;
+  }
+};
+
+/**
+ * Remove comment from a chart
+ * 
+ * @param {string} chartId - Chart ID
+ * @param {string} commentId - Comment ID
+ * @returns {Object} Updated chart
+ */
+const removeComment = async (chartId, commentId) => {
+  try {
+    // Validate IDs
+    if (!mongoose.Types.ObjectId.isValid(chartId)) {
+      throw new ApiError(400, 'Invalid chart ID');
+    }
+    
+    if (!mongoose.Types.ObjectId.isValid(commentId)) {
+      throw new ApiError(400, 'Invalid comment ID');
+    }
+    
+    const chart = await Chart.findByIdAndUpdate(
+      chartId,
+      { $pull: { comments: { _id: commentId } } },
+      { new: true }
+    );
+    
+    if (!chart) {
+      throw new ApiError(404, 'Chart not found');
+    }
+    
+    return chart;
+  } catch (error) {
+    console.error('Error removing comment:', error);
+    throw error;
+  }
+};
+
 module.exports = {
-  calculateBirthChart
+  calculateBirthChart,
+  getChartById,
+  updateChart,
+  getPublicChartsByUserId,
+  addComment,
+  removeComment
 };

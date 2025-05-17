@@ -3,13 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const routes = require('./routes');
 const { errorHandler } = require('./utils/errorHandler');
-const swisseph = require('swisseph');
 const path = require('path');
-
-// Set up Swiss Ephemeris
-const ephePath = process.env.EPHE_PATH || path.join(__dirname, '../ephe');
-swisseph.swe_set_ephe_path(ephePath);
-console.log(`Swiss Ephemeris path set to: ${ephePath}`);
 
 // Create Express app
 const app = express();
